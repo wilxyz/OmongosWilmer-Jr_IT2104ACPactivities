@@ -101,16 +101,25 @@ def display_reservation_details(reservation_id, name, vehicle_plate, mobile_numb
 def setup_database():
     conn = sqlite3.connect('parking_management.db')
     cursor = conn.cursor()
+    
+    # Enable foreign key constraints in SQLite
+    cursor.execute("PRAGMA foreign_keys = ON;")
+    
+    # Create reservations table with a foreign key to parking_slots
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS reservations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             vehicle_plate TEXT NOT NULL,
             mobile_number TEXT NOT NULL,
-            slot_number INTEGER NOT NULL,
-            reservation_time TEXT NOT NULL
+            slot_number INTEGER,
+            reservation_time TEXT NOT NULL,
+            FOREIGN KEY (slot_number) REFERENCES parking_slots(slot_number)
+            ON DELETE SET NULL ON UPDATE CASCADE
         )
     ''')
+    
+    # Create parking_slots table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS parking_slots (
             slot_number INTEGER PRIMARY KEY,
@@ -119,18 +128,20 @@ def setup_database():
             status TEXT NOT NULL
         )
     ''')
+    
     # Insert parking slots if they are not already present
     cursor.execute("SELECT COUNT(*) FROM parking_slots")
     if cursor.fetchone()[0] == 0:
-        slots = [(i, 'REGULAR', 25.0, 'AVAILABLE') for i in range(1, 21)] + \
-                [(i, 'VIP', 90.0, 'AVAILABLE') for i in range(21, 31)] + \
-                [(i, 'PWD', 0.0, 'AVAILABLE') for i in range(31, 41)]
+        slots = [(i, 'REGULAR', 10.0, 'AVAILABLE') for i in range(1, 21)] + \
+                [(i, 'VIP', 15.0, 'AVAILABLE') for i in range(21, 31)] + \
+                [(i, 'PWD', 5.0, 'AVAILABLE') for i in range(31, 41)]
         cursor.executemany("INSERT INTO parking_slots (slot_number, category, charge_per_hour, status) VALUES (?, ?, ?, ?)", slots)
     
-    # To update the price for the first three hours of parking. 
+    # Update charge rates for different categories
     cursor.execute("UPDATE parking_slots SET charge_per_hour = 25.0 WHERE category = 'REGULAR'")
     cursor.execute("UPDATE parking_slots SET charge_per_hour = 95.0 WHERE category = 'VIP'")
     cursor.execute("UPDATE parking_slots SET charge_per_hour = 0.0 WHERE category = 'PWD'")
+    
     conn.commit()
     conn.close()
 
